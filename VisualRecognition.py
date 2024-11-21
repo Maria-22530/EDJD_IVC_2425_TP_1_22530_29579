@@ -17,70 +17,70 @@ def run_camera(stop_event, change_to):
     while not stop_event.is_set():
         ret, frame = cap.read()
         if not ret:
-            break  # Exit if frame is not captured
+            break  #Exit if frame is not captured
 
-        # Flip the image horizontally to coincide with real-life movements
+        #Flip the image horizontally to coincide with real-life movements
         frame = cv2.flip(frame, 1)  # 1 means horizontal flip
 
-        # Convert to HSV for skin color segmentation
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        lower_color = np.array([0, 48, 80], dtype=np.uint8)
-        upper_color = np.array([20, 255, 255], dtype=np.uint8)
-        mask = cv2.inRange(hsv_frame, lower_color, upper_color)
+        #Convert to HSV for skin color segmentation
+        # hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # lower_color = np.array([0, 48, 80], dtype=np.uint8)
+        # upper_color = np.array([20, 255, 255], dtype=np.uint8)
+        # mask = cv2.inRange(hsv_frame, lower_color, upper_color)
 
-        # Detect faces using Haar Cascade
+        #Detect faces using Haar Cascade
         faces = face_detector.detectMultiScale(frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        # Draw rectangles around detected faces
+        #Draw rectangles around detected faces
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        # Control logic for face detection
+        #Control logic for face detection
         if len(faces) > 0:
-            # Take the largest face (closest to the camera)
+            #Take the largest face (closest to the camera)
             (x, y, w, h) = max(faces, key=lambda rect: rect[2] * rect[3])
 
-            # Divide the frame into directional regions based on the face's position
+            #Divide the frame into directional regions based on the face's position
             height, width = frame.shape[:2]
-            if x + w / 2 < width / 3:  # Left third
+            if x + w / 2 < width / 3:  #Left third
                 change_to[0] = 'LEFT'
-            elif x + w / 2 > 2 * width / 3:  # Right third
+            elif x + w / 2 > 2 * width / 3:  #Right third
                 change_to[0] = 'RIGHT'
-            elif y + h / 2 < height / 3:  # Top third
+            elif y + h / 2 < height / 3:  #Top third
                 change_to[0] = 'UP'
-            else:  # Bottom third
+            else:  #Bottom third
                 change_to[0] = 'DOWN'
 
-        # Skin color-based directional controls (fallback if no face detected)
-        if len(faces) == 0:
-            height, width = frame.shape[:2]
-            north_region = mask[:height // 2, :]
-            south_region = mask[height // 2:, :]
-            west_region = mask[:, :width // 2]
-            east_region = mask[:, width // 2:]
+        # #Skin color-based directional controls (fallback if no face detected)
+        # if len(faces) == 0:
+        #     height, width = frame.shape[:2]
+        #     north_region = mask[:height // 2, :]
+        #     south_region = mask[height // 2:, :]
+        #     west_region = mask[:, :width // 2]
+        #     east_region = mask[:, width // 2:]
+        #
+        #     north_pixels = cv2.countNonZero(north_region)
+        #     south_pixels = cv2.countNonZero(south_region)
+        #     west_pixels = cv2.countNonZero(west_region)
+        #     east_pixels = cv2.countNonZero(east_region)
+        #
+        #     max_pixels = max(north_pixels, south_pixels, west_pixels, east_pixels)
+        #     if max_pixels > 0:
+        #         if max_pixels == north_pixels:
+        #             change_to[0] = 'UP'
+        #         elif max_pixels == south_pixels:
+        #             change_to[0] = 'DOWN'
+        #         elif max_pixels == west_pixels:
+        #             change_to[0] = 'LEFT'
+        #         elif max_pixels == east_pixels:
+        #             change_to[0] = 'RIGHT'
 
-            north_pixels = cv2.countNonZero(north_region)
-            south_pixels = cv2.countNonZero(south_region)
-            west_pixels = cv2.countNonZero(west_region)
-            east_pixels = cv2.countNonZero(east_region)
-
-            max_pixels = max(north_pixels, south_pixels, west_pixels, east_pixels)
-            if max_pixels > 0:
-                if max_pixels == north_pixels:
-                    change_to[0] = 'UP'
-                elif max_pixels == south_pixels:
-                    change_to[0] = 'DOWN'
-                elif max_pixels == west_pixels:
-                    change_to[0] = 'LEFT'
-                elif max_pixels == east_pixels:
-                    change_to[0] = 'RIGHT'
-
-        # Display the segmented frame with skin color and face detection
+        #Display the segmented frame with skin color and face detection
         segmented_frame = frame.copy()
-        segmented_frame[mask != 0] = [0, 0, 255]  # Highlight skin pixels in red
+        # segmented_frame[mask != 0] = [0, 0, 255]  # Highlight skin pixels in red
         cv2.imshow("Segmented Areas with Faces", segmented_frame)
 
-        # Exit the camera feed on 'Esc'
+        #Exit the camera feed on 'Esc'
         if cv2.waitKey(1) & 0xFF == 27:
             stop_event.set()
             pygame.quit()
