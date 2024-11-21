@@ -2,17 +2,25 @@
 Snake Eater
 Made with PyGame
 """
+import threading
+import numpy as np
+import pygame, sys, time, random, cv2
+import VisualRecognition
 
-import pygame, sys, time, random
+#Shared variable to stop both camera feed and game loop
+stop_event = threading.Event()
+
+direction = 'RIGHT'
+change_to = [direction]
+
+# Start the camera in a separate thread
+camera_thread = threading.Thread(target=VisualRecognition.run_camera, args=(stop_event, change_to))
+camera_thread.start()
 
 
 # Difficulty settings
-# Easy      ->  10
-# Medium    ->  25
-# Hard      ->  40
-# Harder    ->  60
-# Impossible->  120
-difficulty = 25
+# Bigger number is faster snek
+difficulty = 2
 
 # Window size
 frame_size_x = 720
@@ -53,14 +61,12 @@ snake_body = [[100, 50], [100-10, 50], [100-(2*10), 50]]
 food_pos = [random.randrange(1, (frame_size_x//10)) * 10, random.randrange(1, (frame_size_y//10)) * 10]
 food_spawn = True
 
-direction = 'RIGHT'
-change_to = direction
-
 score = 0
 
 
 # Game Over
 def game_over():
+
     my_font = pygame.font.SysFont('times new roman', 90)
     game_over_surface = my_font.render('YOU DIED', True, red)
     game_over_rect = game_over_surface.get_rect()
@@ -69,7 +75,8 @@ def game_over():
     game_window.blit(game_over_surface, game_over_rect)
     show_score(0, red, 'times', 20)
     pygame.display.flip()
-    time.sleep(3)
+    time.sleep(2)
+    stop_event.set()
     pygame.quit()
     sys.exit()
 
@@ -77,7 +84,7 @@ def game_over():
 # Score
 def show_score(choice, color, font, size):
     score_font = pygame.font.SysFont(font, size)
-    score_surface = score_font.render('Score : ' + str(score), True, color)
+    score_surface = score_font.render('Score : ' + str(score), True, pygame.Color(255, 255, 0) )
     score_rect = score_surface.get_rect()
     if choice == 1:
         score_rect.midtop = (frame_size_x/10, 15)
@@ -86,36 +93,40 @@ def show_score(choice, color, font, size):
     game_window.blit(score_surface, score_rect)
     # pygame.display.flip()
 
+##IMAGE THING
+background_image = pygame.image.load('menubackground.png')
+background_image = pygame.transform.scale(background_image, (frame_size_x, frame_size_y))
 
 # Main logic
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            stop_event.set()
             pygame.quit()
             sys.exit()
         # Whenever a key is pressed down
         elif event.type == pygame.KEYDOWN:
             # W -> Up; S -> Down; A -> Left; D -> Right
             if event.key == pygame.K_UP or event.key == ord('w'):
-                change_to = 'UP'
+                change_to[0] = 'UP'
             if event.key == pygame.K_DOWN or event.key == ord('s'):
-                change_to = 'DOWN'
+                change_to[0] = 'DOWN'
             if event.key == pygame.K_LEFT or event.key == ord('a'):
-                change_to = 'LEFT'
+                change_to[0] = 'LEFT'
             if event.key == pygame.K_RIGHT or event.key == ord('d'):
-                change_to = 'RIGHT'
+                change_to[0] = 'RIGHT'
             # Esc -> Create event to quit the game
             if event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     # Making sure the snake cannot move in the opposite direction instantaneously
-    if change_to == 'UP' and direction != 'DOWN':
+    if change_to[0] == 'UP' and direction != 'DOWN':
         direction = 'UP'
-    if change_to == 'DOWN' and direction != 'UP':
+    if change_to[0] == 'DOWN' and direction != 'UP':
         direction = 'DOWN'
-    if change_to == 'LEFT' and direction != 'RIGHT':
+    if change_to[0] == 'LEFT' and direction != 'RIGHT':
         direction = 'LEFT'
-    if change_to == 'RIGHT' and direction != 'LEFT':
+    if change_to[0] == 'RIGHT' and direction != 'LEFT':
         direction = 'RIGHT'
 
     # Moving the snake
@@ -132,6 +143,7 @@ while True:
     snake_body.insert(0, list(snake_pos))
     if snake_pos[0] == food_pos[0] and snake_pos[1] == food_pos[1]:
         score += 1
+        difficulty += 1
         food_spawn = False
     else:
         snake_body.pop()
@@ -142,15 +154,23 @@ while True:
     food_spawn = True
 
     # GFX
-    game_window.fill(black)
-    for pos in snake_body:
-        # Snake body
-        # .draw.rect(play_surface, color, xy-coordinate)
-        # xy-coordinate -> .Rect(x, y, size_x, size_y)
-        pygame.draw.rect(game_window, green, pygame.Rect(pos[0], pos[1], 10, 10))
+    # game_window.fill(black)
+    # Draw the background image
+    game_window.blit(background_image, (0, 0))
+
+    #Draw the snake head
+    pygame.draw.rect(game_window, pygame.Color(255, 255, 255), pygame.Rect(snake_body[0][0]-1, snake_body[0][1]-1, 12, 12))
+    pygame.draw.rect(game_window, pygame.Color(255, 223, 0), pygame.Rect(snake_body[0][0], snake_body[0][1], 10, 10))
+    #Draw the rest of the snake body
+    for pos in snake_body[1:]:
+        pygame.draw.rect(game_window, pygame.Color(255, 255, 255), pygame.Rect(pos[0]-1, pos[1]-1, 12, 12))
+        pygame.draw.rect(game_window, pygame.Color(249, 239, 172), pygame.Rect(pos[0], pos[1], 10, 10))
+
 
     # Snake food
-    pygame.draw.rect(game_window, white, pygame.Rect(food_pos[0], food_pos[1], 10, 10))
+    # pygame.draw.rect(game_window, pygame.Color(249, 239, 172), pygame.Rect(food_pos[0]-1, food_pos[1]-1, 12, 12))
+    pygame.draw.rect(game_window, pygame.Color(249, 249, 176), pygame.Rect(food_pos[0]-1, food_pos[1]-1, 12, 12))
+    pygame.draw.rect(game_window, pygame.Color(0, 41, 106), pygame.Rect(food_pos[0], food_pos[1], 10, 10))
 
     # Game Over conditions
     # Getting out of bounds
@@ -162,6 +182,12 @@ while True:
     for block in snake_body[1:]:
         if snake_pos[0] == block[0] and snake_pos[1] == block[1]:
             game_over()
+
+    #Call the funcs in VisualRecognition.py
+    #Obtain head and body pixel coordinates
+    head_position, food_position = VisualRecognition.find_snake_positions(game_window)
+    #Display coordinates on the game window
+    VisualRecognition.show_snake_positions(game_window, head_position, food_position)
 
     show_score(1, white, 'consolas', 20)
     # Refresh game screen
